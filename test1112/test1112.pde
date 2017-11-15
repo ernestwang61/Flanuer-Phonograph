@@ -92,6 +92,8 @@ void draw()
 
   getSTATE();
   getButtonValue();
+  //loadSoundFile();
+
 
 }
 
@@ -226,33 +228,53 @@ void getSTATE(){
   if( myPort.available() > 0) {
     switchValue = myPort.read();
     println(switchValue);
+
+    switch(switchValue){
+      case '!':
+        // case 1: pre-recorded sound + monitoring
+        println("switchValue = 0");
+
+
+
+
+        break;
+
+      case '@':
+        // case 2: 2 track of user recorded sound + monitoring
+        println("switchValue = 1");
+
+
+
+
+        break;
+
+      case '#':
+
+        println("switchValue = 2");
+
+        break;
+    }
+
   }
 
-  switch(switchValue){
-    case 0:
-      
-      println("switchValue = 0");
-
-      break;
-
-    case 1:
-
-      println("switchValue = 1");
-
-      break;
-
-    case 2:
-
-      println("switchValue = 2");
-
-      break;
-  }
+  
 }
 
 void getButtonValue(){
-  if( myPort.available() > 0){
-    recordButtonSTATE = myPort.read();
-  }
+  // if( myPort.available() > 0){
+  //   recordButtonSTATE = myPort.read();
+  // }
+
+}
+
+
+void recordSound(){
 
 
 }
+
+void saveRecordSound(){
+
+
+}
+

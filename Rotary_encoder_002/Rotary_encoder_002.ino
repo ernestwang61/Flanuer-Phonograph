@@ -12,6 +12,13 @@
 
 volatile int count = 0;
 unsigned long t = 0;
+char mode;             //mode for differet sound sets
+
+int flexSensorValue;
+int buttonState = 0;
+char recordState;      // start or stop&save recording
+
+char charToSend;
 
 void setup() {
   Serial.begin(SERIAL_BAUDRATE);
@@ -21,15 +28,58 @@ void setup() {
   pinMode(DT_PIN, INPUT_PULLUP); 
   pinMode(SW_PIN, INPUT_PULLUP); 
 }
-void loop() {
-  if(digitalRead(SW_PIN) == LOW){ // 按下開關，歸零
-     count = 0;  
-     Serial.println("count reset to 0");
-     delay(300);
-  }
 
+void loop() {
+  
+  readRotaryEncoder();
+  readFlexSensor();
+  
 
 }
+
+
+
+
+//========================================
+
+void readRotaryEncoder(){
+  
+  if(digitalRead(SW_PIN) == LOW){ // 偵測開關是否被按下
+    // count = 0;  
+    // Serial.println("count reset to 0");
+    // delay(300);
+
+    //button pressed, then start recording. Pressed again, stop recording
+    buttonState = abs(buttonState - 1); //flip buttonState everytime when button is pressed
+
+
+    if(buttonState == 0){
+      recordState = 'S';
+    }
+    else if(buttonState == 1){
+      recordState = 'R';
+    }
+    // [TODO] send through serial port
+    charToSend = recordState;
+    updateSerial();
+
+  }
+
+}
+
+
+void readFlexSensor(){
+  // [TODO] read flexSensorValue(0 - 1024), then send through serial port
+  // option 1: find a way to combine different sensor's int value, and send through serial port,
+  //            but the values has to be distinguishable on Processing side.
+  // option 2: map flexSensorValue to 5 steps, use 5 different char indicate every steps.
+
+
+  flexSensorValue = 255;//analogRead();
+  Serial.write(flexSensorValue);
+
+}
+
 void rotaryEncoderChanged(){ // when CLK_PIN is FALLING
   unsigned long temp = millis();
   if(temp - t < 200) // 去彈跳
@@ -46,6 +96,38 @@ void rotaryEncoderChanged(){ // when CLK_PIN is FALLING
   }
 
 
-  //Serial.println(count);
-  Serial.write(count);
+  switch(count){
+    case 0:
+      mode = '!';
+      break;
+    case 1:
+      mode = '@';
+      break;
+    case 2:
+      mode = '#';
+      break;
+  }
+
+  // Serial.println(count);
+  // Serial.write(count);
+  // Serial.println(mode);
+  // Serial.write(mode);
+  charToSend = mode;
+  updateSerial();
+
 }
+
+
+void updateSerial(){
+  // char (serialArray[2]) = {0,0};  //[TODO] how to send array of int instead of character
+
+  // Serial.println(serialArray);
+  
+  Serial.write(charToSend);
+
+}
+
+
+
+
+

@@ -11,7 +11,9 @@
 #define interruptA 0 // UNO腳位2是interrupt 0，其他板子請見官方網頁
 
 volatile int count = 0;
-unsigned long t = 0;
+unsigned long t_flex = 0;
+unsigned long t_rotary = 0;
+unsigned long t_press = 0;
 char mode;             //mode for differet sound sets
 
 int flexSensorValue;
@@ -31,6 +33,7 @@ void setup() {
 
 void loop() {
   
+  
   readRotaryEncoder();
   readFlexSensor();
   
@@ -42,27 +45,37 @@ void loop() {
 
 //========================================
 
+int c;
 void readRotaryEncoder(){
-  
-  if(digitalRead(SW_PIN) == LOW){ // 偵測開關是否被按下
+  unsigned long temp = millis();
+  if(temp - t_press < 100) // 去彈跳
+    return;
+  t_press = temp;
+
+
+  if(digitalRead(SW_PIN) == HIGH)
+    c = 0;
+  else if(digitalRead(SW_PIN) == LOW){ // 偵測開關是否被按下
     // count = 0;  
     // Serial.println("count reset to 0");
     // delay(300);
 
+    if(c == 0){
     //button pressed, then start recording. Pressed again, stop recording
-    buttonState = abs(buttonState - 1); //flip buttonState everytime when button is pressed
+      buttonState = abs(buttonState - 1); //flip buttonState everytime when button is pressed
+    
+      if(buttonState == 0){
+        recordState = 's';
+      }
+      else if(buttonState == 1){
+        recordState = 'r';
+      }
+      // [TODO] send through serial port
+      charToSend = recordState;
+      updateSerial();
 
-
-    if(buttonState == 0){
-      recordState = 'S';
+      c++;
     }
-    else if(buttonState == 1){
-      recordState = 'R';
-    }
-    // [TODO] send through serial port
-    charToSend = recordState;
-    updateSerial();
-
   }
 
 }
@@ -74,6 +87,10 @@ void readFlexSensor(){
   //            but the values has to be distinguishable on Processing side.
   // option 2: map flexSensorValue to 5 steps, use 5 different char indicate every steps.
 
+  unsigned long temp = millis();
+  if(temp - t_flex < 200) // 去彈跳
+    return;
+  t_flex = temp;
 
   flexSensorValue = 255;//analogRead();
   Serial.write(flexSensorValue);
@@ -82,9 +99,9 @@ void readFlexSensor(){
 
 void rotaryEncoderChanged(){ // when CLK_PIN is FALLING
   unsigned long temp = millis();
-  if(temp - t < 200) // 去彈跳
+  if(temp - t_rotary < 200) // 去彈跳
     return;
-  t = temp;
+  t_rotary = temp;
   
   // DT_PIN的狀態代表正轉或逆轉
   count += digitalRead(DT_PIN) == HIGH ? 1 : -1;

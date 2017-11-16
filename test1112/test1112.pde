@@ -253,6 +253,31 @@ void getSTATE(){
         println("switchValue = 2");
 
         break;
+
+
+
+      case 'r':
+
+        println("switchValue = r");
+
+        key = 'r';
+        keyReleased();
+
+        break;
+
+
+
+      case 's':
+
+        println("switchValue = s");
+        
+        key = 'r';
+        keyReleased();
+        delay (50);
+        key = 's';
+        keyReleased();
+
+        break;
     }
 
   }

@@ -10,6 +10,8 @@
 
 #define interruptA 0 // UNO腳位2是interrupt 0，其他板子請見官方網頁
 
+#define FLEX_PIN 0
+
 volatile int count = 0;
 unsigned long t_flex = 0;
 unsigned long t_rotary = 0;
@@ -21,6 +23,8 @@ int buttonState = 0;
 char recordState;      // start or stop&save recording
 
 char charToSend;
+
+int occupiedValue[] = {33, 35, 64, 114, 115};
 
 void setup() {
   Serial.begin(SERIAL_BAUDRATE);
@@ -92,7 +96,13 @@ void readFlexSensor(){
     return;
   t_flex = temp;
 
-  flexSensorValue = 255;//analogRead();
+  flexSensorValue = analogRead(FLEX_PIN);
+
+  for(int i = 0; i < 5; i++){
+    if(flexSensorValue == occupiedValue[i])
+      flexSensorValue += 5;
+  } // 
+    
   Serial.write(flexSensorValue);
 
 }

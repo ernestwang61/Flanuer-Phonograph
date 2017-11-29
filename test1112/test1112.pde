@@ -7,7 +7,11 @@ import ddf.minim.ugens.*;
 
 Serial myPort;
 int switchValue;
+int flexSensorValue;
+int occupiedValue[] = {33, 35, 64, 114, 115};
 boolean recordButtonSTATE;
+
+int state;
 
 Minim minim;
 
@@ -23,8 +27,12 @@ boolean recorded;
 AudioOutput out;
 FilePlayer player3;
 
-String audioLayer1 = "groove.mp3";
-String audioLayer2 = "NTUST_Sounds.mp3";
+String AudioLayer1;
+String AudioLayer2;
+String userAudioLayer1 = "groove.mp3";
+String userAudioLayer2 = "groove.mp3";
+String historyAudioLayer1 = "NTUST_Sounds_Jar.mp3";
+String historyAudioLayer2 = "NTUST_Sounds_E.wav";
 
 int recordCount = 0;
 
@@ -42,8 +50,8 @@ void setup()
   // loadFile will look in all the same places as loadImage does.
   // this means you can find files that are in the data folder and the 
   // sketch folder. you can also pass an absolute path, or a URL.
-  player = new FilePlayer( minim.loadFileStream( audioLayer1 ));
-  player2 = new FilePlayer( minim.loadFileStream( audioLayer2 ));
+  player = new FilePlayer( minim.loadFileStream( historyAudioLayer1 ));
+  player2 = new FilePlayer( minim.loadFileStream( historyAudioLayer2 ));
 
   recorder = minim.createRecorder(in, "test-recording" + recordCount + ".wav");
 
@@ -71,6 +79,8 @@ void draw()
     line( i, 150 + in.right.get(i)*50, i+1, 150 + in.right.get(i+1)*50 );
   }
   
+  in.enableMonitoring();
+
   String monitoringState = in.isMonitoring() ? "enabled" : "disabled";
   text( "Input monitoring is currently " + monitoringState + ".", 5, 15 );
 
@@ -81,16 +91,19 @@ void draw()
   {
     text("Now recording, press the r key to stop recording.", 5, 40);
   }
-  else if ( !recorded )
-  {
-    text("Press the r key to start recording.", 5, 40);
-  }
+  // else if ( !recorded )
+  // {
+  //   text("Press the r key to start recording.", 5, 40);
+  // }
   else
   {
-    text("Press the s key to save the recording to disk and play it back in the sketch.", 5, 40);
+    text("Press the s key to save the recording to disk.", 5, 40);
   }  
 
-  getSTATE();
+  getSerial();
+  setSTATE();
+  setFlexValue();
+
   getButtonValue();
   //loadSoundFile();
 
@@ -118,7 +131,7 @@ void keyPressed()
       }
       break;
     case '1':
-      println("audioLayer1 = " + audioLayer1);
+      println("userAudioLayer1 = " + userAudioLayer1);
 
       if ( player.isPlaying() )
       {
@@ -138,7 +151,7 @@ void keyPressed()
       break;
       
     case '2':
-      println("audioLayer2 = " + audioLayer2);
+      println("userAudioLayer2 = " + userAudioLayer2);
 
       if ( player2.isPlaying() )
       {
@@ -169,15 +182,20 @@ void keyReleased()
     // You can start and stop as many times as you like, the audio data will 
     // be appended to the end of to the end of the file. 
     case 'r':
-      if ( recorder.isRecording() ) 
-      {
-        recorder.endRecord();
-        recorded = true;
-      }
-      else 
-      {
+      println(recordCount);
+      recorder = minim.createRecorder(in, "test-recording" + recordCount + ".wav");
       recorder.beginRecord();
-      }
+
+      // if ( recorder.isRecording() ) 
+      // {
+      //   recorder.endRecord();
+      //   recorded = true;
+      // }
+      // else 
+      // {
+      //   recorder = minim.createRecorder(in, "test-recording" + recordCount + ".wav");
+      //   recorder.beginRecord();
+      // }
       break;
 
     case 's':
@@ -190,52 +208,83 @@ void keyReleased()
       // is closing the file.
       // save returns the recorded audio in an AudioRecordingStream, 
       // which we can then play with a FilePlayer
+      if ( recorder.isRecording() ) 
+      {
+        recorder.endRecord();
+        recorder.save();
+        recordCount++;
+      }
+
       if ( player3 != null )
       {
         player3.unpatch( out );
         player3.close();
       }
-      player3 = new FilePlayer( recorder.save() );
-      player3.patch( out );
-      player3.play();
+
+      // player3 = new FilePlayer( recorder.save() );
+      // player3.patch( out );
+      // player3.play();
 
       //player.close();
       //player2.close();
 
-
-      //shift audioLayer1 to audioLayer2
+      if(state == 2){
+      //shift userAudioLayer1 to userAudioLayer2
         //player2 = player;
-      audioLayer2 = audioLayer1;
-      player2.unpatch(out);
-      player2.close();
-      player2 = new FilePlayer(minim.loadFileStream(audioLayer2));
-      player2.patch(out);
+        userAudioLayer2 = userAudioLayer1;
+        // player2.unpatch(out);
+        // player2.close();
+        // player2 = new FilePlayer(minim.loadFileStream(userAudioLayer2));
+        // player2.patch(out);
 
-      //shift current recording to audioLayer1
-      audioLayer1 = "test-recording" + recordCount + ".wav";
-      player.unpatch(out);
-      player.close();
-      player = new FilePlayer(minim.loadFileStream(audioLayer1));
-      player.patch(out);
-      //
-      recordCount = recordCount + 1;
+      //shift current recording to userAudioLayer1
+        userAudioLayer1 = "test-recording" + recordCount + ".wav";
+        // player.unpatch(out);
+        // player.close();
+        // player = new FilePlayer(minim.loadFileStream(userAudioLayer1));
+        // player.patch(out);
+        //
+
+        AudioLayer1 = userAudioLayer1;
+        AudioLayer2 = userAudioLayer2;
+        loadSoundFile();
+      }
+      else if(state == 1){
+
+      }
+
+
 
       break;
   }
 }  
 
-void getSTATE(){
+void getSerial(){
   if( myPort.available() > 0) {
     switchValue = myPort.read();
-    println(switchValue);
+    println(switchValue);   
+  }
+}
 
-    switch(switchValue){
+void setFlexValue(){
+  for(int i = 0; i < 5; i++){
+    if(switchValue != occupiedValue[i]){
+      flexSensorValue = switchValue;
+    }
+  }
+}
+
+void setSTATE(){
+  switch(switchValue){
       case '!':
         // case 1: pre-recorded sound + monitoring
         println("switchValue = 0");
 
+        AudioLayer1 = historyAudioLayer1;
+        AudioLayer2 = historyAudioLayer2;
+        loadSoundFile();
 
-
+        state = 1;
 
         break;
 
@@ -243,14 +292,20 @@ void getSTATE(){
         // case 2: 2 track of user recorded sound + monitoring
         println("switchValue = 1");
 
+        AudioLayer1 = userAudioLayer1;
+        AudioLayer2 = userAudioLayer2;
+        loadSoundFile();
 
-
+        state = 2;
 
         break;
 
       case '#':
 
         println("switchValue = 2");
+
+
+        state = 3;
 
         break;
 
@@ -279,10 +334,20 @@ void getSTATE(){
 
         break;
     }
+}
 
-  }
-
+void loadSoundFile(){
   
+  player.unpatch(out);
+  player.close();
+  player = new FilePlayer(minim.loadFileStream(AudioLayer1));
+  player.patch(out); 
+  
+  player2.unpatch(out);
+  player2.close();
+  player2 = new FilePlayer(minim.loadFileStream(AudioLayer2));
+  player2.patch(out);
+
 }
 
 void getButtonValue(){
@@ -294,7 +359,14 @@ void getButtonValue(){
 
 
 void recordSound(){
+  if ( recorder.isRecording() ){
+        recorder.endRecord();
+        recorded = true;
+  }
 
+  else {
+      recorder.beginRecord();
+  }
 
 }
 

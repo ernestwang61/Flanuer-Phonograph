@@ -32,9 +32,12 @@ String AudioLayer2;
 String userAudioLayer1 = "groove.mp3";
 String userAudioLayer2 = "groove.mp3";
 String historyAudioLayer1 = "NTUST_Sounds_Jar.mp3";
-String historyAudioLayer2 = "NTUST_Sounds_E.wav";
+String historyAudioLayer2 = "NTUST_Sounds_Jar.mp3";
 
-int recordCount = 0;
+int recordCount_H = 0;
+int recordCount_U = 0;
+
+int previousSTATE = 0;
 
 void setup()
 {
@@ -53,7 +56,7 @@ void setup()
   player = new FilePlayer( minim.loadFileStream( historyAudioLayer1 ));
   player2 = new FilePlayer( minim.loadFileStream( historyAudioLayer2 ));
 
-  recorder = minim.createRecorder(in, "test-recording" + recordCount + ".wav");
+  recorder = minim.createRecorder(in, "test-recording-start.wav");
 
   out = minim.getLineOut( Minim.STEREO );
 
@@ -103,9 +106,6 @@ void draw()
   getSerial();
   setSTATE();
   setFlexValue();
-
-  getButtonValue();
-  //loadSoundFile();
 
 
 }
@@ -175,27 +175,22 @@ void keyPressed()
 
 void keyReleased()
 {
-  //if ( !recorded && key == 'r' ) 
   switch(key){
-    // to indicate that you want to start or stop capturing audio data, 
-    // you must callstartRecording() and stopRecording() on the AudioRecorder object. 
-    // You can start and stop as many times as you like, the audio data will 
-    // be appended to the end of to the end of the file. 
     case 'r':
-      println(recordCount);
-      recorder = minim.createRecorder(in, "test-recording" + recordCount + ".wav");
+      print("recordCount_H = ");
+      println(recordCount_H);
+      print("recordCount_U = ");
+      println(recordCount_U
+        );
+      if(state == 1){
+        recorder = minim.createRecorder(in, "history-recording" + recordCount_H + ".wav");
+        recordCount_H++;
+      }
+      else if(state == 2){
+        recorder = minim.createRecorder(in, "user-recording" + recordCount_U + ".wav");
+        recordCount_U++;
+      }
       recorder.beginRecord();
-
-      // if ( recorder.isRecording() ) 
-      // {
-      //   recorder.endRecord();
-      //   recorded = true;
-      // }
-      // else 
-      // {
-      //   recorder = minim.createRecorder(in, "test-recording" + recordCount + ".wav");
-      //   recorder.beginRecord();
-      // }
       break;
 
     case 's':
@@ -212,7 +207,6 @@ void keyReleased()
       {
         recorder.endRecord();
         recorder.save();
-        recordCount++;
       }
 
       if ( player3 != null )
@@ -228,6 +222,32 @@ void keyReleased()
       //player.close();
       //player2.close();
 
+      switch(state){
+        case 1:
+          AudioLayer1 = historyAudioLayer1;
+          AudioLayer2 = historyAudioLayer2;
+          
+          loadSoundFile();
+          break;
+
+        case 2:
+          player.play();
+          player2.play();
+
+          userAudioLayer2 = userAudioLayer1;
+          userAudioLayer1 = "user-recording" + recordCount_U + ".wav";
+          
+          AudioLayer1 = userAudioLayer1;
+          AudioLayer2 = userAudioLayer2;
+          loadSoundFile();
+          break;
+
+        case 3:
+
+          break;
+      }
+
+
       if(state == 2){
       //shift userAudioLayer1 to userAudioLayer2
         //player2 = player;
@@ -238,7 +258,7 @@ void keyReleased()
         // player2.patch(out);
 
       //shift current recording to userAudioLayer1
-        userAudioLayer1 = "test-recording" + recordCount + ".wav";
+        userAudioLayer1 = "user-recording" + recordCount_U + ".wav";
         // player.unpatch(out);
         // player.close();
         // player = new FilePlayer(minim.loadFileStream(userAudioLayer1));
@@ -249,11 +269,6 @@ void keyReleased()
         AudioLayer2 = userAudioLayer2;
         loadSoundFile();
       }
-      else if(state == 1){
-
-      }
-
-
 
       break;
   }
@@ -274,8 +289,12 @@ void setFlexValue(){
   }
 }
 
-void setSTATE(){
-  switch(switchValue){
+void setSTATE(){ //[TODO]setState() runs in draw() which is 60fps, pull down sampling rate.
+
+  if(switchValue == previousSTATE)
+    return;
+  else{
+    switch(switchValue){
       case '!':
         // case 1: pre-recorded sound + monitoring
         println("switchValue = 0");
@@ -286,6 +305,7 @@ void setSTATE(){
 
         state = 1;
 
+        previousSTATE = 33;
         break;
 
       case '@':
@@ -298,6 +318,7 @@ void setSTATE(){
 
         state = 2;
 
+        previousSTATE = 64;
         break;
 
       case '#':
@@ -307,6 +328,7 @@ void setSTATE(){
 
         state = 3;
 
+        previousSTATE = 35;
         break;
 
 
@@ -318,6 +340,7 @@ void setSTATE(){
         key = 'r';
         keyReleased();
 
+        previousSTATE = 114;
         break;
 
 
@@ -332,8 +355,10 @@ void setSTATE(){
         key = 's';
         keyReleased();
 
+        previousSTATE = 115;
         break;
     }
+  }
 }
 
 void loadSoundFile(){

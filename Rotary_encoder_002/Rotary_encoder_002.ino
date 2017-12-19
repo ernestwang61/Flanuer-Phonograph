@@ -1,3 +1,6 @@
+#include <HP20x_dev.h>
+#include <KalmanFilter.h>
+
 //  Rotary encoder reference
 //  http://yehnan.blogspot.tw/2014/02/arduino.html
 
@@ -22,7 +25,7 @@ int flexSensorValue;
 int buttonState = 0;
 char recordState;      // start or stop&save recording
 
-char charToSend;
+char charToSend[] = {'<', '0', '0', '0', '0', '>'};
 
 int occupiedValue[] = {33, 35, 64, 114, 115};
 
@@ -40,6 +43,7 @@ void loop() {
   
   readRotaryEncoder();
   readFlexSensor();
+  updateSerial();
   
 
 }
@@ -75,8 +79,9 @@ void readRotaryEncoder(){
         recordState = 'r';
       }
       // [TODO] send through serial port
-      charToSend = recordState;
-      updateSerial();
+      charToSend[4] = recordState;
+      
+      // updateSerial();
 
       c++;
     }
@@ -102,8 +107,10 @@ void readFlexSensor(){
     if(flexSensorValue == occupiedValue[i])
       flexSensorValue += 5;
   } // 
-    
-  Serial.write(flexSensorValue);
+  
+  charToSend[1] = char(flexSensorValue);
+
+  // Serial.write(flexSensorValue);
 
 }
 
@@ -139,18 +146,19 @@ void rotaryEncoderChanged(){ // when CLK_PIN is FALLING
   // Serial.write(count);
   // Serial.println(mode);
   // Serial.write(mode);
-  charToSend = mode;
-  updateSerial();
+  charToSend[3] = mode;
+  
+  // updateSerial();
 
 }
 
 
 void updateSerial(){
-  // char (serialArray[2]) = {0,0};  //[TODO] how to send array of int instead of character
-
-  // Serial.println(serialArray);
-  
-  Serial.write(charToSend);
+  for(int i = 0; i < 6; i++){
+    Serial.write(charToSend[i]);
+    // if(i == 6)
+    //   Serial.println(" ");
+  } 
 
 }
 

@@ -4,6 +4,9 @@
 import processing.serial.*;
 import ddf.minim.*;
 import ddf.minim.ugens.*;
+import ddf.minim.spi.*; //for AudioStream
+import ddf.minim.effects.*;
+
 
 Serial myPort;
 int switchValue;
@@ -11,12 +14,19 @@ int flexSensorValue;
 int occupiedValue[] = {33, 35, 64, 114, 115};
 boolean recordButtonSTATE;
 
-int state;
+boolean newData = false;
+int numChars = 4;
+char receivedChars[] = {'0','0','0','0'};
+
+int state = 0;
 
 Minim minim;
 
 FilePlayer player;
 FilePlayer player2;
+
+// for monitoring
+LiveInput liveIn;
 
 // for recording
 AudioInput in;
@@ -25,7 +35,11 @@ boolean recorded;
 
 // for playing back
 AudioOutput out;
+AudioOutput out2;
 FilePlayer player3;
+
+// for bandpass filter
+BandPass bpf;
 
 String AudioLayer1;
 String AudioLayer2;
@@ -39,26 +53,43 @@ int recordCount_U = 0;
 
 int previousSTATE = 0;
 
+int sensorValue_1;
+int sensorValue_2;
+char mode;
+char recordState;
+
 void setup()
 {
   size(512, 200, P3D);
   
   // we pass this to Minim so that it can load files from the data directory
   minim = new Minim(this);
-  
-  // use the getLineIn method of the Minim object to get an AudioInput
+  out = minim.getLineOut( Minim.STEREO );
+  out2 = minim.getLineOut(Minim.STEREO);
   in = minim.getLineIn(Minim.STEREO); // use the getLineIn method of the Minim object to get an AudioInput
+
+  // we ask for an input with the same audio properties as the output.
+  AudioStream inputStream = minim.getInputStream( out.getFormat().getChannels(), 
+                                                  out.bufferSize(), 
+                                                  out.sampleRate(), 
+                                                  out.getFormat().getSampleSizeInBits());
+
   
+  // construct a LiveInput by giving it an InputStream from minim.  
+  liveIn = new LiveInput( inputStream );
+
+  bpf = new BandPass(440, 20, out.sampleRate());
+  liveIn.patch( bpf ).patch( out2 );
   
   // loadFile will look in all the same places as loadImage does.
   // this means you can find files that are in the data folder and the 
   // sketch folder. you can also pass an absolute path, or a URL.
   player = new FilePlayer( minim.loadFileStream( historyAudioLayer1 ));
   player2 = new FilePlayer( minim.loadFileStream( historyAudioLayer2 ));
+  // player3 = new FilePlayer( minim.loadFileStream(in));
 
-  recorder = minim.createRecorder(in, "test-recording-start.wav");
+  recorder = minim.createRecorder(out2, "test-recording-start.wav");
 
-  out = minim.getLineOut( Minim.STEREO );
 
   player.patch(out);
   player2.patch(out);
@@ -82,7 +113,7 @@ void draw()
     line( i, 150 + in.right.get(i)*50, i+1, 150 + in.right.get(i+1)*50 );
   }
   
-  in.enableMonitoring();
+  //in.enableMonitoring();
 
   String monitoringState = in.isMonitoring() ? "enabled" : "disabled";
   text( "Input monitoring is currently " + monitoringState + ".", 5, 15 );
@@ -104,8 +135,9 @@ void draw()
   }  
 
   getSerial();
+  getSensorValue();
   setSTATE();
-  setFlexValue();
+
 
 
 }
@@ -180,14 +212,16 @@ void keyReleased()
       print("recordCount_H = ");
       println(recordCount_H);
       print("recordCount_U = ");
-      println(recordCount_U
-        );
-      if(state == 1){
-        recorder = minim.createRecorder(in, "history-recording" + recordCount_H + ".wav");
+      println(recordCount_U);
+      print("state = ");
+      println(state);
+
+      if(state == 0){
+        recorder = minim.createRecorder(out2, "history-recording" + recordCount_H + ".wav");
         recordCount_H++;
       }
-      else if(state == 2){
-        recorder = minim.createRecorder(in, "user-recording" + recordCount_U + ".wav");
+      else if(state == 1){
+        recorder = minim.createRecorder(out2, "user-recording" + recordCount_U + ".wav");
         recordCount_U++;
       }
       recorder.beginRecord();
@@ -223,119 +257,183 @@ void keyReleased()
       //player2.close();
 
       switch(state){
-        case 1:
+        case 0:
           AudioLayer1 = historyAudioLayer1;
           AudioLayer2 = historyAudioLayer2;
           
           loadSoundFile();
           break;
 
-        case 2:
+        case 1:
           player.play();
           player2.play();
 
+          int recordCount_fileName = recordCount_U - 1;
+
           userAudioLayer2 = userAudioLayer1;
-          userAudioLayer1 = "user-recording" + recordCount_U + ".wav";
+          userAudioLayer1 = "user-recording" + recordCount_fileName + ".wav";
           
           AudioLayer1 = userAudioLayer1;
           AudioLayer2 = userAudioLayer2;
           loadSoundFile();
           break;
 
-        case 3:
+        case 2:
 
           break;
       }
 
 
-      if(state == 2){
-      //shift userAudioLayer1 to userAudioLayer2
-        //player2 = player;
-        userAudioLayer2 = userAudioLayer1;
-        // player2.unpatch(out);
-        // player2.close();
-        // player2 = new FilePlayer(minim.loadFileStream(userAudioLayer2));
-        // player2.patch(out);
+      // if(state == 2){
+      // //shift userAudioLayer1 to userAudioLayer2
+      //   //player2 = player;
+      //   userAudioLayer2 = userAudioLayer1;
+      //   // player2.unpatch(out);
+      //   // player2.close();
+      //   // player2 = new FilePlayer(minim.loadFileStream(userAudioLayer2));
+      //   // player2.patch(out);
 
-      //shift current recording to userAudioLayer1
-        userAudioLayer1 = "user-recording" + recordCount_U + ".wav";
-        // player.unpatch(out);
-        // player.close();
-        // player = new FilePlayer(minim.loadFileStream(userAudioLayer1));
-        // player.patch(out);
-        //
+      // //shift current recording to userAudioLayer1
+      //   userAudioLayer1 = "user-recording" + recordCount_U + ".wav";
+      //   // player.unpatch(out);
+      //   // player.close();
+      //   // player = new FilePlayer(minim.loadFileStream(userAudioLayer1));
+      //   // player.patch(out);
+      //   //
 
-        AudioLayer1 = userAudioLayer1;
-        AudioLayer2 = userAudioLayer2;
-        loadSoundFile();
-      }
+      //   AudioLayer1 = userAudioLayer1;
+      //   AudioLayer2 = userAudioLayer2;
+      //   loadSoundFile();
+      // }
 
       break;
   }
 }  
+void getSerial() {
+    boolean recvInProgress = false;
+    int ndx = 0;
+    char startMarker = '<';
+    char endMarker = '>';
+    char rc;
+    char rca[] = new char[12];
+ 
+    // while (myPort.available() > 0 && newData == false) {
+    //     rc = char(myPort.read());
+    //     if (recvInProgress == true) {
+    //         if (rc != endMarker) {
+    //             receivedChars[ndx] = rc;
+    //             ndx++;
+    //             // if (ndx >= numChars) {
+    //             //     ndx = numChars - 1;
+    //             // }
+    //         }
+    //         else {
+    //             // receivedChars[ndx] = '\0'; // terminate the string
+    //             recvInProgress = false;
+    //             ndx = 0;
+    //             newData = true;
+    //         }
+    //     }
 
-void getSerial(){
-  if( myPort.available() > 0) {
-    switchValue = myPort.read();
-    println(switchValue);   
-  }
-}
+    //     else if (rc == startMarker) {
+    //         recvInProgress = true;
+    //     }
+    // }
 
-void setFlexValue(){
-  for(int i = 0; i < 5; i++){
-    if(switchValue != occupiedValue[i]){
-      flexSensorValue = switchValue;
+    if(myPort.available() > 0){
+      for(int i = 0; i < 12; i++){
+          rca[i] = char(myPort.read());
+        }
+      for(int i = 0; i < 12; i++){
+          if(rca[i] == startMarker){
+            for(int j = 0; j < 4; j++)
+              receivedChars[j] = rca[(i%6)+j+1];
+          }
+      }
+
     }
-  }
+
 }
 
-void setSTATE(){ //[TODO]setState() runs in draw() which is 60fps, pull down sampling rate.
+void getSensorValue() {
+    // if (newData == true) {
+        // println("This just in ... ");
+        // for(int i = 0; i <4; i++){
+        //   print("receivedChars[");
+        //   print(i);
+        //   print("] = ");
+        //   println(receivedChars[i]);
+        // }
 
-  if(switchValue == previousSTATE)
+        sensorValue_1 = receivedChars[0];
+        sensorValue_2 = receivedChars[1];
+        mode = receivedChars[2];
+        recordState = receivedChars[3];
+
+        println(sensorValue_1);
+        println(sensorValue_2);
+        println(mode);
+        println(recordState);
+        println(" ");
+      
+        // newData = false;
+    // }
+}
+
+
+
+void setSTATE(){ 
+
+  if(mode == previousSTATE)
     return;
   else{
-    switch(switchValue){
+    switch(mode){
       case '!':
         // case 1: pre-recorded sound + monitoring
-        println("switchValue = 0");
+        if(previousSTATE != 114){
+          println("mode = 0");
 
-        AudioLayer1 = historyAudioLayer1;
-        AudioLayer2 = historyAudioLayer2;
-        loadSoundFile();
+          AudioLayer1 = historyAudioLayer1;
+          AudioLayer2 = historyAudioLayer2;
+          loadSoundFile();
 
-        state = 1;
+          state = 0;
 
-        previousSTATE = 33;
+          previousSTATE = 33;
+        }
         break;
 
       case '@':
         // case 2: 2 track of user recorded sound + monitoring
-        println("switchValue = 1");
+        if(previousSTATE != 114){
+          println("mode = 1");
 
-        AudioLayer1 = userAudioLayer1;
-        AudioLayer2 = userAudioLayer2;
-        loadSoundFile();
+          AudioLayer1 = userAudioLayer1;
+          AudioLayer2 = userAudioLayer2;
+          loadSoundFile();
 
-        state = 2;
+          state = 1;
 
-        previousSTATE = 64;
+          previousSTATE = 64;
+        }
         break;
 
       case '#':
+        if(previousSTATE != 114){
+          println("mode = 2");
 
-        println("switchValue = 2");
 
+          state = 2;
 
-        state = 3;
-
-        previousSTATE = 35;
+          previousSTATE = 35;
+        }
         break;
 
 
 
       case 'r':
 
-        println("switchValue = r");
+        println("recordState = r");
 
         key = 'r';
         keyReleased();
@@ -347,11 +445,11 @@ void setSTATE(){ //[TODO]setState() runs in draw() which is 60fps, pull down sam
 
       case 's':
 
-        println("switchValue = s");
+        println("recordState = s");
         
-        key = 'r';
-        keyReleased();
-        delay (50);
+        // key = 'r';
+        // keyReleased();
+        // delay (50);
         key = 's';
         keyReleased();
 
@@ -361,8 +459,8 @@ void setSTATE(){ //[TODO]setState() runs in draw() which is 60fps, pull down sam
   }
 }
 
-void loadSoundFile(){
-  
+
+void loadSoundFile(){ 
   player.unpatch(out);
   player.close();
   player = new FilePlayer(minim.loadFileStream(AudioLayer1));
@@ -375,28 +473,17 @@ void loadSoundFile(){
 
 }
 
-void getButtonValue(){
-  // if( myPort.available() > 0){
-  //   recordButtonSTATE = myPort.read();
-  // }
 
+
+
+// to change bandpass filter value
+void mouseMoved()
+{
+  // map the mouse position to the range [100, 10000], an arbitrary range of passBand frequencies
+  float passBand = map(mouseX, 0, width, 100, 2000);
+  bpf.setFreq(passBand);
+  float bandWidth = map(mouseY, 0, height, 50, 500);
+  bpf.setBandWidth(bandWidth);
+  // prints the new values of the coefficients in the console
+  //bpf.printCoeff();
 }
-
-
-void recordSound(){
-  if ( recorder.isRecording() ){
-        recorder.endRecord();
-        recorded = true;
-  }
-
-  else {
-      recorder.beginRecord();
-  }
-
-}
-
-void saveRecordSound(){
-
-
-}
-

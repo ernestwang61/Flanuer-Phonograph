@@ -25,7 +25,7 @@ int flexSensorValue;
 int buttonState = 0;
 char recordState;      // start or stop&save recording
 
-char charToSend[] = {'<', '0', '0', '0', '0', '>'};
+int charToSend = 0;
 
 int occupiedValue[] = {33, 35, 64, 114, 115};
 
@@ -43,7 +43,7 @@ void loop() {
   
   readRotaryEncoder();
   readFlexSensor();
-  updateSerial();
+  //updateSerial();
   
 
 }
@@ -79,9 +79,9 @@ void readRotaryEncoder(){
         recordState = 'r';
       }
       // [TODO] send through serial port
-      charToSend[4] = recordState;
+      charToSend = recordState;
       
-      // updateSerial();
+      updateSerial();
 
       c++;
     }
@@ -103,13 +103,18 @@ void readFlexSensor(){
 
   flexSensorValue = analogRead(FLEX_PIN);
 
+  //only send even number
+  if(flexSensorValue % 2 == 1)
+    flexSensorValue++;
+
+  //check if sensor value bump into occupiedValue, if so, shift the value up
   for(int i = 0; i < 5; i++){
     if(flexSensorValue == occupiedValue[i])
-      flexSensorValue += 5;
-  } // 
+      flexSensorValue += 2;
+  } 
   
-  charToSend[1] = char(flexSensorValue);
-
+  charToSend = flexSensorValue;
+  updateSerial();
   // Serial.write(flexSensorValue);
 
 }
@@ -146,19 +151,20 @@ void rotaryEncoderChanged(){ // when CLK_PIN is FALLING
   // Serial.write(count);
   // Serial.println(mode);
   // Serial.write(mode);
-  charToSend[3] = mode;
+  charToSend = mode;
   
-  // updateSerial();
+  updateSerial();
 
 }
 
 
 void updateSerial(){
-  for(int i = 0; i < 6; i++){
-    Serial.write(charToSend[i]);
+  
+  // for(int i = 0; i < 6; i++){
+    Serial.write(charToSend);
     // if(i == 6)
     //   Serial.println(" ");
-  } 
+  // } 
 
 }
 

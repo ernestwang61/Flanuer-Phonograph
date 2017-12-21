@@ -309,75 +309,54 @@ void keyReleased()
       break;
   }
 }  
-void getSerial() {
-    boolean recvInProgress = false;
-    int ndx = 0;
-    char startMarker = '<';
-    char endMarker = '>';
-    char rc;
-    char rca[] = new char[12];
- 
-    // while (myPort.available() > 0 && newData == false) {
-    //     rc = char(myPort.read());
-    //     if (recvInProgress == true) {
-    //         if (rc != endMarker) {
-    //             receivedChars[ndx] = rc;
-    //             ndx++;
-    //             // if (ndx >= numChars) {
-    //             //     ndx = numChars - 1;
-    //             // }
-    //         }
-    //         else {
-    //             // receivedChars[ndx] = '\0'; // terminate the string
-    //             recvInProgress = false;
-    //             ndx = 0;
-    //             newData = true;
-    //         }
-    //     }
 
-    //     else if (rc == startMarker) {
-    //         recvInProgress = true;
-    //     }
-    // }
 
-    if(myPort.available() > 0){
-      for(int i = 0; i < 12; i++){
-          rca[i] = char(myPort.read());
-        }
-      for(int i = 0; i < 12; i++){
-          if(rca[i] == startMarker){
-            for(int j = 0; j < 4; j++)
-              receivedChars[j] = rca[(i%6)+j+1];
-          }
-      }
-
-    }
+int incomingNum;
+void getSerial(){
+  if(myPort.available() > 0){
+    incomingNum = myPort.read();
+    println(incomingNum);
+  }
 
 }
 
+
 void getSensorValue() {
     // if (newData == true) {
-        // println("This just in ... ");
-        // for(int i = 0; i <4; i++){
-        //   print("receivedChars[");
-        //   print(i);
-        //   print("] = ");
-        //   println(receivedChars[i]);
-        // }
-
-        sensorValue_1 = receivedChars[0];
-        sensorValue_2 = receivedChars[1];
-        mode = receivedChars[2];
-        recordState = receivedChars[3];
-
-        println(sensorValue_1);
-        println(sensorValue_2);
-        println(mode);
-        println(recordState);
-        println(" ");
+        // sensorValue_1 = receivedChars[0];
+        // sensorValue_2 = receivedChars[1];
+        // mode = receivedChars[2];
+        // recordState = receivedChars[3];
       
         // newData = false;
     // }
+    for(int i = 0; i < 5; i++){
+      if(incomingNum == occupiedValue[i]){
+        switch(incomingNum){
+          case '!':
+            mode = '!';
+            break;
+          case '@':
+            mode = '@';
+            break;
+          case '#':
+            mode = '#';
+            break;
+          case 'r':
+            recordState = 'r';
+            break;
+          case 's':
+            recordState = 's';
+            break;
+        }
+      }
+      else if(incomingNum%2 == 0){
+        sensorValue_1 = incomingNum;
+      }
+      else{
+        sensorValue_2 = incomingNum;
+      }
+    }
 }
 
 

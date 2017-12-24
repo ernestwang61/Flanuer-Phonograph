@@ -315,21 +315,13 @@ int incomingNum;
 void getSerial(){
   if(myPort.available() > 0){
     incomingNum = myPort.read();
-    println(incomingNum);
+    //println(incomingNum);
   }
 
 }
 
 
 void getSensorValue() {
-    // if (newData == true) {
-        // sensorValue_1 = receivedChars[0];
-        // sensorValue_2 = receivedChars[1];
-        // mode = receivedChars[2];
-        // recordState = receivedChars[3];
-      
-        // newData = false;
-    // }
     for(int i = 0; i < 5; i++){
       if(incomingNum == occupiedValue[i]){
         switch(incomingNum){
@@ -343,10 +335,10 @@ void getSensorValue() {
             mode = '#';
             break;
           case 'r':
-            recordState = 'r';
+            mode = 'r';
             break;
           case 's':
-            recordState = 's';
+            mode = 's';
             break;
         }
       }
@@ -357,6 +349,14 @@ void getSensorValue() {
         sensorValue_2 = incomingNum;
       }
     }
+
+    setBandpass();
+
+    print("sensorValue_1: ");
+    println(sensorValue_1);
+    print("sensorValue_2: ");
+    println(sensorValue_2);
+
 }
 
 
@@ -456,12 +456,12 @@ void loadSoundFile(){
 
 
 // to change bandpass filter value
-void mouseMoved()
+void setBandpass()
 {
   // map the mouse position to the range [100, 10000], an arbitrary range of passBand frequencies
-  float passBand = map(mouseX, 0, width, 100, 2000);
+  float passBand = map(sensorValue_1, 0, 255, 100, 2000);
   bpf.setFreq(passBand);
-  float bandWidth = map(mouseY, 0, height, 50, 500);
+  float bandWidth = map(sensorValue_2, 0, 255, 50, 500);
   bpf.setBandWidth(bandWidth);
   // prints the new values of the coefficients in the console
   //bpf.printCoeff();

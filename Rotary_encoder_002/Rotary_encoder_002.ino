@@ -1,8 +1,9 @@
-#include <HP20x_dev.h>
-#include <KalmanFilter.h>
-
 //  Rotary encoder reference
 //  http://yehnan.blogspot.tw/2014/02/arduino.html
+
+#include <Ultrasonic.h>
+#include <HP20x_dev.h>
+#include <KalmanFilter.h>
 
 #include "SoftwareSerial.h"
 
@@ -19,15 +20,24 @@ volatile int count = 0;
 unsigned long t_flex = 0;
 unsigned long t_rotary = 0;
 unsigned long t_press = 0;
+unsigned long t_uSonic = 0;
 char mode;             //mode for differet sound sets
 
 int flexSensorValue;
+int ultrasonicValue;
+
 int buttonState = 0;
 char recordState;      // start or stop&save recording
 
 int charToSend = 0;
 
 int occupiedValue[] = {33, 35, 64, 114, 115};
+
+#define TRIGGER_PIN  12
+#define ECHO_PIN     13
+Ultrasonic ultrasonic(TRIGGER_PIN, ECHO_PIN);
+
+//============================================
 
 void setup() {
   Serial.begin(SERIAL_BAUDRATE);
@@ -43,6 +53,7 @@ void loop() {
   
   readRotaryEncoder();
   readFlexSensor();
+  readUltrasonic();
   //updateSerial();
   
 
@@ -166,7 +177,41 @@ void updateSerial(){
     //   Serial.println(" ");
   // } 
 
+  //Serial.println(charToSend);
+
 }
+
+
+void readUltrasonic(){
+  unsigned long temp = millis();
+  if(temp - t_uSonic < 200) // read every 200ms
+    return;
+  t_uSonic = temp;
+
+  float cmMsec;
+  long microsec = ultrasonic.timing();
+
+  cmMsec = ultrasonic.convert(microsec, Ultrasonic::CM);
+  if(cmMsec > 200)
+    cmMsec = 200;
+
+  ultrasonicValue = map(int(cmMsec), 0, 200, 0, 255);
+  
+  if (ultrasonicValue % 2 == 0)
+    ultrasonicValue++;
+  
+  for(int i = 0; i < 5; i++){
+    if(ultrasonicValue == occupiedValue[i])
+      ultrasonicValue += 2;
+  } 
+
+  charToSend = ultrasonicValue;
+  updateSerial(); 
+}
+
+
+
+
 
 
 

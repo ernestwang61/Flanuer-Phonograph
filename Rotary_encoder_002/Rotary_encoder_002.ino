@@ -49,14 +49,14 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(60, neo_PIN, NEO_GRB + NEO_KHZ800);
 void setup() {
   Serial.begin(SERIAL_BAUDRATE);
   // 當狀態下降時，代表旋轉編碼器被轉動了
-  attachInterrupt(interruptA, rotaryEncoderChanged, FALLING);
+  attachInterrupt(digitalPinToInterrupt(CLK_PIN), rotaryEncoderChanged, FALLING);
   pinMode(CLK_PIN, INPUT_PULLUP); // 輸入模式並啟用內建上拉電阻
   pinMode(DT_PIN, INPUT_PULLUP); 
   pinMode(SW_PIN, INPUT_PULLUP); 
 
   // setup neopixel
   strip.begin();
-  strip.setBrightness(30);
+  strip.setBrightness(50);
   strip.show();
 }
 
@@ -200,7 +200,7 @@ void updateSerial(){
 
 
 void readUltrasonic(){
-  int uSonic_threshold = 200; //unit: cm
+  int uSonic_threshold = 150; //unit: cm
 
   unsigned long temp = millis();
   if(temp - t_uSonic < 100) // read every 200ms

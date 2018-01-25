@@ -43,18 +43,19 @@ BandPass bpf;
 
 String AudioLayer1;
 String AudioLayer2;
-String userAudioLayer1 = "groove.mp3";
-String userAudioLayer2 = "groove.mp3";
+String userAudioLayer1 = "NTUST_Sounds_E.wav";
+String userAudioLayer2 = "NTUST_Sounds_E.wav";
 String historyAudioLayer1 = "NTUST_Sounds_Jar.mp3";
 String historyAudioLayer2 = "NTUST_Sounds_Jar.mp3";
 
 int recordCount_H = 0;
 int recordCount_U = 0;
+int recordCount_3 = 0;
 
 int previousSTATE = 0;
 
-int sensorValue_1;
-int sensorValue_2;
+int sliderValue;
+int ultraSonicValue;
 char mode;
 char recordState;
 
@@ -79,7 +80,9 @@ void setup()
   liveIn = new LiveInput( inputStream );
 
   bpf = new BandPass(440, 20, out.sampleRate());
-  liveIn.patch( bpf ).patch( out2 );
+  // liveIn.patch( bpf ).patch( out2 );
+  
+  out.setGain(-20.0);
   
   // loadFile will look in all the same places as loadImage does.
   // this means you can find files that are in the data folder and the 
@@ -224,6 +227,11 @@ void keyReleased()
         recorder = minim.createRecorder(out2, "user-recording" + recordCount_U + ".wav");
         recordCount_U++;
       }
+      else if(state == 2){
+        recorder = minim.createRecorder(out2, "mode3-recording" + recordCount_3 + ".wav");
+        recordCount_3++;
+      }
+
       recorder.beginRecord();
       break;
 
@@ -257,16 +265,18 @@ void keyReleased()
       //player2.close();
 
       switch(state){
-        case 0:
-          AudioLayer1 = historyAudioLayer1;
-          AudioLayer2 = historyAudioLayer2;
+        // case 0:
+        //   AudioLayer1 = historyAudioLayer1;
+        //   AudioLayer2 = historyAudioLayer2;
           
-          loadSoundFile();
-          break;
+        //   loadSoundFile();
+
+        //   player.loop();
+        //   player2.loop();
+
+        //   break;
 
         case 1:
-          player.play();
-          player2.play();
 
           int recordCount_fileName = recordCount_U - 1;
 
@@ -276,6 +286,10 @@ void keyReleased()
           AudioLayer1 = userAudioLayer1;
           AudioLayer2 = userAudioLayer2;
           loadSoundFile();
+
+          player.loop();
+          player2.loop();
+
           break;
 
         case 2:
@@ -343,19 +357,19 @@ void getSensorValue() {
         }
       }
       else if(incomingNum%2 == 0){
-        sensorValue_1 = incomingNum;
+        sliderValue = incomingNum;
       }
       else{
-        sensorValue_2 = incomingNum;
+        ultraSonicValue = incomingNum;
       }
     }
 
     setBandpass();
 
-    print("sensorValue_1: ");
-    println(sensorValue_1);
-    print("sensorValue_2: ");
-    println(sensorValue_2);
+    // print("sliderValue: ");
+    // println(sliderValue);
+    // print("ultraSonicValue: ");
+    // println(ultraSonicValue);
 
 }
 
@@ -372,9 +386,15 @@ void setSTATE(){
         if(previousSTATE != 114){
           println("mode = 0");
 
+          liveIn.unpatch( out2 );
+          liveIn.patch( out2 );
+
           AudioLayer1 = historyAudioLayer1;
           AudioLayer2 = historyAudioLayer2;
           loadSoundFile();
+
+          player.loop();
+          player2.loop();
 
           state = 0;
 
@@ -387,9 +407,15 @@ void setSTATE(){
         if(previousSTATE != 114){
           println("mode = 1");
 
+          liveIn.unpatch( out2 );
+          liveIn.patch( bpf ).patch( out2 );
+
           AudioLayer1 = userAudioLayer1;
           AudioLayer2 = userAudioLayer2;
           loadSoundFile();
+
+          player.loop();
+          player2.loop();
 
           state = 1;
 
@@ -401,7 +427,13 @@ void setSTATE(){
         if(previousSTATE != 114){
           println("mode = 2");
 
+          liveIn.unpatch( out2 );
+          liveIn.patch( bpf ).patch( out2 );
 
+          player.unpatch(out);
+          player.close();
+          player2.unpatch(out);
+          player2.close();
           state = 2;
 
           previousSTATE = 35;
@@ -450,19 +482,37 @@ void loadSoundFile(){
   player2 = new FilePlayer(minim.loadFileStream(AudioLayer2));
   player2.patch(out);
 
+
 }
 
 
 
 
 // to change bandpass filter value
+//[TODO]固定bandwidth, 身高高低控制frequency
+//[TODO] slider 控制音量
+//[TODO] 找常見聲音頻率範圍
+//[TODO] 440hz 為基礎
+// 一般高度、 蹲下、抬高 >> 希望達成什麼樣的效果(interaction vision)
 void setBandpass()
 {
-  // map the mouse position to the range [100, 10000], an arbitrary range of passBand frequencies
-  float passBand = map(sensorValue_1, 0, 255, 100, 2000);
-  bpf.setFreq(passBand);
-  float bandWidth = map(sensorValue_2, 0, 255, 50, 500);
+  float bandWidth = 500;
   bpf.setBandWidth(bandWidth);
+
+  // map the mouse position to the range [100, 10000], an arbitrary range of passBand frequencies
+  float passBand = map(ultraSonicValue, 0, 255, 100, 1000); 
+  bpf.setFreq(passBand);
+  print("BandPass Freq:");
+  println(passBand);
+  // float bandWidth = map(ultraSonicValue, 0, 255, 50, 500);
+  // bpf.setBandWidth(bandWidth);
+
   // prints the new values of the coefficients in the console
   //bpf.printCoeff();
+  float gain = map(sliderValue, 0, 255, 1, 60);
+  out2.setGain(gain);
+  print("Out2 gain:");
+  println(gain);
+
+
 }

@@ -34,8 +34,8 @@ AudioRecorder recorder;
 boolean recorded;
 
 // for playing back
-AudioOutput out;
-AudioOutput out2;
+AudioOutput out_other;
+AudioOutput out_main;
 FilePlayer player3;
 
 // for bandpass filter
@@ -43,10 +43,10 @@ BandPass bpf;
 
 String AudioLayer1;
 String AudioLayer2;
-String userAudioLayer1 = "NTUST_Sounds_E.wav";
-String userAudioLayer2 = "NTUST_Sounds_E.wav";
-String historyAudioLayer1 = "NTUST_Sounds_Jar.mp3";
-String historyAudioLayer2 = "NTUST_Sounds_Jar.mp3";
+String historyAudioLayer1 = "089_online.wav";
+String historyAudioLayer2 = "sound_mix.wav";
+String userAudioLayer1 = "REC006_01_online.wav";
+String userAudioLayer2 = "REC006_01_online.wav";
 
 int recordCount_H = 0;
 int recordCount_U = 0;
@@ -65,24 +65,25 @@ void setup()
   
   // we pass this to Minim so that it can load files from the data directory
   minim = new Minim(this);
-  out = minim.getLineOut( Minim.STEREO );
-  out2 = minim.getLineOut(Minim.STEREO);
+  out_other = minim.getLineOut( Minim.STEREO );
+  out_main = minim.getLineOut(Minim.STEREO);
   in = minim.getLineIn(Minim.STEREO); // use the getLineIn method of the Minim object to get an AudioInput
 
   // we ask for an input with the same audio properties as the output.
-  AudioStream inputStream = minim.getInputStream( out.getFormat().getChannels(), 
-                                                  out.bufferSize(), 
-                                                  out.sampleRate(), 
-                                                  out.getFormat().getSampleSizeInBits());
+  AudioStream inputStream = minim.getInputStream( out_other.getFormat().getChannels(), 
+                                                  out_other.bufferSize(), 
+                                                  out_other.sampleRate(), 
+                                                  out_other.getFormat().getSampleSizeInBits());
 
   
   // construct a LiveInput by giving it an InputStream from minim.  
   liveIn = new LiveInput( inputStream );
 
-  bpf = new BandPass(440, 20, out.sampleRate());
-  // liveIn.patch( bpf ).patch( out2 );
+  bpf = new BandPass(440, 20, out_other.sampleRate());
+  // liveIn.patch( bpf ).patch( out_main );
   
-  out.setGain(-20.0);
+  out_other.setGain(0.0);
+  out_main.setGain(50.0);
   
   // loadFile will look in all the same places as loadImage does.
   // this means you can find files that are in the data folder and the 
@@ -91,11 +92,11 @@ void setup()
   player2 = new FilePlayer( minim.loadFileStream( historyAudioLayer2 ));
   // player3 = new FilePlayer( minim.loadFileStream(in));
 
-  recorder = minim.createRecorder(out2, "test-recording-start.wav");
+  recorder = minim.createRecorder(out_main, "test-recording-start.wav");
 
 
-  player.patch(out);
-  player2.patch(out);
+  player.patch(out_other);
+  player2.patch(out_other);
 
   textFont(createFont("Arial", 12));
 
@@ -140,6 +141,7 @@ void draw()
   getSerial();
   getSensorValue();
   setSTATE();
+  setGain(sliderValue);
 
 
 
@@ -220,15 +222,15 @@ void keyReleased()
       println(state);
 
       if(state == 0){
-        recorder = minim.createRecorder(out2, "history-recording" + recordCount_H + ".wav");
+        recorder = minim.createRecorder(out_main, "history-recording" + recordCount_H + ".wav");
         recordCount_H++;
       }
       else if(state == 1){
-        recorder = minim.createRecorder(out2, "user-recording" + recordCount_U + ".wav");
+        recorder = minim.createRecorder(out_main, "user-recording" + recordCount_U + ".wav");
         recordCount_U++;
       }
       else if(state == 2){
-        recorder = minim.createRecorder(out2, "mode3-recording" + recordCount_3 + ".wav");
+        recorder = minim.createRecorder(out_main, "mode3-recording" + recordCount_3 + ".wav");
         recordCount_3++;
       }
 
@@ -236,7 +238,7 @@ void keyReleased()
       break;
 
     case 's':
-      // we've filled the file out buffer, 
+      // we've filled the file out_other buffer, 
       // now write it to a file of the type we specified in setup
       // in the case of buffered recording, 
       // this will appear to freeze the sketch for sometime, if the buffer is large
@@ -253,12 +255,12 @@ void keyReleased()
 
       if ( player3 != null )
       {
-        player3.unpatch( out );
+        player3.unpatch( out_other );
         player3.close();
       }
 
       // player3 = new FilePlayer( recorder.save() );
-      // player3.patch( out );
+      // player3.patch( out_other );
       // player3.play();
 
       //player.close();
@@ -302,17 +304,17 @@ void keyReleased()
       // //shift userAudioLayer1 to userAudioLayer2
       //   //player2 = player;
       //   userAudioLayer2 = userAudioLayer1;
-      //   // player2.unpatch(out);
+      //   // player2.unpatch(out_other);
       //   // player2.close();
       //   // player2 = new FilePlayer(minim.loadFileStream(userAudioLayer2));
-      //   // player2.patch(out);
+      //   // player2.patch(out_other);
 
       // //shift current recording to userAudioLayer1
       //   userAudioLayer1 = "user-recording" + recordCount_U + ".wav";
-      //   // player.unpatch(out);
+      //   // player.unpatch(out_other);
       //   // player.close();
       //   // player = new FilePlayer(minim.loadFileStream(userAudioLayer1));
-      //   // player.patch(out);
+      //   // player.patch(out_other);
       //   //
 
       //   AudioLayer1 = userAudioLayer1;
@@ -364,7 +366,7 @@ void getSensorValue() {
       }
     }
 
-    setBandpass();
+    // setFilter();
 
     // print("sliderValue: ");
     // println(sliderValue);
@@ -384,10 +386,7 @@ void setSTATE(){
       case '!':
         // case 1: pre-recorded sound + monitoring
         if(previousSTATE != 114){
-          println("mode = 0");
-
-          liveIn.unpatch( out2 );
-          liveIn.patch( out2 );
+          println("mode = history");
 
           AudioLayer1 = historyAudioLayer1;
           AudioLayer2 = historyAudioLayer2;
@@ -396,19 +395,29 @@ void setSTATE(){
           player.loop();
           player2.loop();
 
+          int random = int(random(5*60*1000));     
+          int random_2 = int(random(1*60*1000));
+
+          player.cue(random);
+          player2.cue(random_2);
+
+
           state = 0;
 
           previousSTATE = 33;
         }
+        liveIn.unpatch( out_main );
+        // setFilter(ultraSonicValue, 1, sliderValue, 1); //[TODO] 裝置高度對應到什麼？prepared sound mode應該要如何改變聲音？
+        // setFilter(int passBandValue, int bandPass_output, int gainValue, int gain_output) //output: 1 or 2
+
+        liveIn.patch( out_main );
+
         break;
 
       case '@':
         // case 2: 2 track of user recorded sound + monitoring
         if(previousSTATE != 114){
-          println("mode = 1");
-
-          liveIn.unpatch( out2 );
-          liveIn.patch( bpf ).patch( out2 );
+          println("mode = user");
 
           AudioLayer1 = userAudioLayer1;
           AudioLayer2 = userAudioLayer2;
@@ -421,18 +430,22 @@ void setSTATE(){
 
           previousSTATE = 64;
         }
+        liveIn.unpatch( out_main );
+        // setFilter();
+        liveIn.patch( out_main );
+
         break;
 
       case '#':
         if(previousSTATE != 114){
-          println("mode = 2");
+          println("mode = no Effects");
 
-          liveIn.unpatch( out2 );
-          liveIn.patch( bpf ).patch( out2 );
+          liveIn.unpatch( out_main );
+          liveIn.patch( out_main );
 
-          player.unpatch(out);
+          player.unpatch(out_other);
           player.close();
-          player2.unpatch(out);
+          player2.unpatch(out_other);
           player2.close();
           state = 2;
 
@@ -472,15 +485,15 @@ void setSTATE(){
 
 
 void loadSoundFile(){ 
-  player.unpatch(out);
+  player.unpatch(out_other);
   player.close();
   player = new FilePlayer(minim.loadFileStream(AudioLayer1));
-  player.patch(out); 
+  player.patch(out_other); 
   
-  player2.unpatch(out);
+  player2.unpatch(out_other);
   player2.close();
   player2 = new FilePlayer(minim.loadFileStream(AudioLayer2));
-  player2.patch(out);
+  player2.patch(out_other);
 
 
 }
@@ -494,25 +507,41 @@ void loadSoundFile(){
 //[TODO] 找常見聲音頻率範圍
 //[TODO] 440hz 為基礎
 // 一般高度、 蹲下、抬高 >> 希望達成什麼樣的效果(interaction vision)
-void setBandpass()
+// 一班高度：70-100, 蹲下：0-70, 抬高: 100-150
+void setFilter(int passBandValue, int bandPass_output, int gainValue, int gain_output)
 {
   float bandWidth = 500;
   bpf.setBandWidth(bandWidth);
 
   // map the mouse position to the range [100, 10000], an arbitrary range of passBand frequencies
-  float passBand = map(ultraSonicValue, 0, 255, 100, 1000); 
+  float passBand = map(passBandValue, 0, 255, 100, 1000); 
   bpf.setFreq(passBand);
   print("BandPass Freq:");
   println(passBand);
   // float bandWidth = map(ultraSonicValue, 0, 255, 50, 500);
-  // bpf.setBandWidth(bandWidth);
+  // bpf.setBandWidth(bandWidth);\
+
 
   // prints the new values of the coefficients in the console
   //bpf.printCoeff();
-  float gain = map(sliderValue, 0, 255, 1, 60);
-  out2.setGain(gain);
-  print("Out2 gain:");
+  float gain = map(gainValue, 0, 255, 1, 60);
+  if(gain_output == 1){
+    out_other.setGain(gain);
+    print("Out_other gain:");
+  }
+  else if (gain_output == 2){
+    out_main.setGain(gain);
+    print("Out_main gain:");
+  }
   println(gain);
 
+}
+
+void setGain(int gainValue){
+  float gain_main = map(gainValue, 0, 255, 20, 80);
+  out_main.setGain(gain_main);
+
+  float gain_other = map(gainValue, 0, 255, 20, -20);
+  out_other.setGain(gain_other);
 
 }

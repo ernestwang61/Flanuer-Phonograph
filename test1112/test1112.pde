@@ -43,8 +43,8 @@ BandPass bpf;
 
 String AudioLayer1;
 String AudioLayer2;
-String historyAudioLayer1 = "089_online.wav";
-String historyAudioLayer2 = "sound_mix.wav";
+String historyAudioLayer1 = "Flaneur Phonograph_history_BoWen.wav";
+String historyAudioLayer2 = "Flaneur Phonograph_history_BoWen.wav";
 String userAudioLayer1 = "REC006_01_online.wav";
 String userAudioLayer2 = "REC006_01_online.wav";
 
@@ -98,10 +98,14 @@ void setup()
   player.patch(out_other);
   player2.patch(out_other);
 
+//////// Serial connection /////////////
   textFont(createFont("Arial", 12));
-
+  printArray(Serial.list());
   String portName = Serial.list()[1];
   myPort = new Serial(this, portName, 115200);
+
+
+
 
 }
 
@@ -393,13 +397,13 @@ void setSTATE(){
           loadSoundFile();
 
           player.loop();
-          player2.loop();
+          // player2.loop();
 
-          int random = int(random(5*60*1000));     
-          int random_2 = int(random(1*60*1000));
+          int random = int(random((7*60+55)*1000));     
+          // int random_2 = int(random(1*60*1000));
 
           player.cue(random);
-          player2.cue(random_2);
+          // player2.cue(random_2);
 
 
           state = 0;

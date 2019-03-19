@@ -45,12 +45,15 @@ String AudioLayer1;
 String AudioLayer2;
 String historyAudioLayer1 = "Flaneur Phonograph_history_BoWen.wav";
 String historyAudioLayer2 = "Flaneur Phonograph_history_BoWen.wav";
-String userAudioLayer1 = "REC006_01_online.wav";
-String userAudioLayer2 = "REC006_01_online.wav";
+// String userAudioLayer1 = "REC006_01_online.wav";
+// String userAudioLayer2 = "REC006_01_online.wav";
+String userAudioLayer1;
+String userAudioLayer2;
 
 int recordCount_H = 0;
 int recordCount_U = 0;
 int recordCount_3 = 0;
+JSONArray RecordList;
 
 int previousSTATE = 0;
 
@@ -105,7 +108,19 @@ void setup()
   myPort = new Serial(this, portName, 115200);
 
 
+//////// Get latest user recorded file ///////////
+  RecordList = loadJSONArray("recordList.json");
+  recordCount_U = RecordList.size();
+  print("recordCount_U = ");
+  println(recordCount_U);
 
+  JSONObject userRecording1 = RecordList.getJSONObject(recordCount_U - 1 );
+  String userRecording_Title1 = userRecording1.getString("file title");
+  JSONObject userRecording2 = RecordList.getJSONObject(recordCount_U - 2 );
+  String userRecording_Title2 = userRecording2.getString("file title");
+
+  userAudioLayer1 = userRecording_Title1;
+  userAudioLayer2 = userRecording_Title2;
 
 }
 
@@ -213,6 +228,14 @@ void keyPressed()
   }
 }
   
+int rY = 0;
+int rM = 0;
+int rD = 0;
+int rh = 0;
+int rm = 0;
+int rs = 0;
+String recordTitle;
+JSONObject newRecording;
 
 void keyReleased()
 {
@@ -230,8 +253,33 @@ void keyReleased()
         recordCount_H++;
       }
       else if(state == 1){
-        recorder = minim.createRecorder(out_main, "user-recording" + recordCount_U + ".wav");
-        recordCount_U++;
+        int Y = year();
+        int M = month();
+        int D = day();
+        int h = hour();
+        int m = minute();
+        int s = second();
+
+        rY = Y;
+        rM = M;
+        rD = D;
+        rh = h;
+        rm = m;
+        rs = s;
+        
+        recordTitle= "user-recording" + rY + rM + rD + "_" + rh + "_" + rm + "_" + rs + ".wav";
+
+        newRecording = new JSONObject();
+      
+        int i = RecordList.size();
+        newRecording.setInt("id", i);
+        newRecording.setString("type", "user");
+        newRecording.setString("file title", recordTitle);
+        RecordList.setJSONObject(i, newRecording);
+        saveJSONArray(RecordList, "data/recordList.json");
+
+        recorder = minim.createRecorder(out_main, recordTitle);
+        
       }
       else if(state == 2){
         recorder = minim.createRecorder(out_main, "mode3-recording" + recordCount_3 + ".wav");
@@ -286,9 +334,13 @@ void keyReleased()
 
           int recordCount_fileName = recordCount_U - 1;
 
-          userAudioLayer2 = userAudioLayer1;
-          userAudioLayer1 = "user-recording" + recordCount_fileName + ".wav";
-          
+          userAudioLayer2 = userAudioLayer1; //shift previous recording to 2nd layer
+
+          // get new recording file name
+          JSONObject userRecording1 = RecordList.getJSONObject(RecordList.size()-1);
+          String file_title = userRecording1.getString("file title"); 
+          userAudioLayer1 = file_title;
+
           AudioLayer1 = userAudioLayer1;
           AudioLayer2 = userAudioLayer2;
           loadSoundFile();
